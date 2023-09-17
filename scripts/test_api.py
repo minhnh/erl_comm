@@ -1,6 +1,13 @@
 #!/usr/bin/env python3
 from pprint import pprint
-from erl_comm.http_client import ConnInfo, send_ping, send_start_ep, send_stop_ep, send_start_phase, send_stop_phase
+from erl_comm.http_client import (
+    ConnInfo,
+    send_ping,
+    send_start_ep,
+    send_stop_ep,
+    send_start_phase,
+    send_stop_phase,
+)
 
 
 def main():
