@@ -20,6 +20,7 @@ class RequestKey(StrEnum):
     ACTION = "Action"
     EPISODE = "Episode"
     PHASE = "Phase"
+    MSG = "Message"
 
 
 class RespKey(StrEnum):
@@ -96,5 +97,14 @@ def send_stop_phase(conn_info: ConnInfo, ep_num: int, phase_num: int) -> bool:
     json_data = get_action_json(conn_info, ActionType.STOP_PHASE)
     json_data[RequestKey.EPISODE] = ep_num
     json_data[RequestKey.PHASE] = phase_num
+    resp_json = send_http_req(conn_info.url, json_data=json_data)
+    return resp_json[RespKey.SUCCESS]
+
+
+def send_info(conn_info: ConnInfo, ep_num: int, phase_num: int, msg: str) -> bool:
+    json_data = get_action_json(conn_info, ActionType.INFO)
+    json_data[RequestKey.EPISODE] = ep_num
+    json_data[RequestKey.PHASE] = phase_num
+    json_data[RequestKey.MSG] = msg
     resp_json = send_http_req(conn_info.url, json_data=json_data)
     return resp_json[RespKey.SUCCESS]
