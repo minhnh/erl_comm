@@ -7,10 +7,10 @@ class ActionType(StrEnum):
     EPISODES = "EPISODES"  # Returns a list of Episode and Phase numbers and names that
     # must be provided when requesting other data from the Hub.
     ITEMS = "ITEMS"  # Returns a list of Items for a specific Episode and Phase.
-    STARTEPISODE = "STARTEPISODE"  # Informs the Hub the Robot has started an Episode.
-    STOPEPISODE = "STOPEPISODE"  # Informs the Hub the Robot has stopped/completed an Episode.
-    STARTPHASE = "STARTPHASE"  # Informs the Hub the Robot has started a Phase.
-    STOPPHASE = "STOPPHASE"  # Informs the Hub the Robot has stopped a Phase.
+    START_EP = "STARTEPISODE"  # Informs the Hub the Robot has started an Episode.
+    STOP_EP = "STOPEPISODE"  # Informs the Hub the Robot has stopped/completed an Episode.
+    START_PHASE = "STARTPHASE"  # Informs the Hub the Robot has started a Phase.
+    STOP_PHASE = "STOPPHASE"  # Informs the Hub the Robot has stopped a Phase.
     INFO = "INFO"  # A general message from the Robot.
 
 
@@ -43,9 +43,9 @@ def get_default_json(conn_info: ConnInfo) -> dict:
     }
 
 
-def get_ping_json(conn_info: ConnInfo) -> dict:
+def get_action_json(conn_info: ConnInfo, action: ActionType) -> dict:
     json_req = get_default_json(conn_info)
-    json_req[RequestKey.ACTION] = ActionType.PING
+    json_req[RequestKey.ACTION] = action
     return json_req
 
 
@@ -66,5 +66,35 @@ def send_http_req(url: str, json_data: dict) -> dict:
 
 
 def send_ping(conn_info: ConnInfo) -> bool:
-    resp_json = send_http_req(conn_info.url, json_data=get_ping_json(conn_info))
+    resp_json = send_http_req(conn_info.url, json_data=get_action_json(conn_info, ActionType.PING))
+    return resp_json[RespKey.SUCCESS]
+
+
+def send_start_ep(conn_info: ConnInfo, ep_num: int) -> bool:
+    json_data = get_action_json(conn_info, ActionType.START_EP)
+    json_data[RequestKey.EPISODE] = ep_num
+    resp_json = send_http_req(conn_info.url, json_data=json_data)
+    return resp_json[RespKey.SUCCESS]
+
+
+def send_stop_ep(conn_info: ConnInfo, ep_num: int) -> bool:
+    json_data = get_action_json(conn_info, ActionType.STOP_EP)
+    json_data[RequestKey.EPISODE] = ep_num
+    resp_json = send_http_req(conn_info.url, json_data=json_data)
+    return resp_json[RespKey.SUCCESS]
+
+
+def send_start_phase(conn_info: ConnInfo, ep_num: int, phase_num: int) -> bool:
+    json_data = get_action_json(conn_info, ActionType.START_PHASE)
+    json_data[RequestKey.EPISODE] = ep_num
+    json_data[RequestKey.PHASE] = phase_num
+    resp_json = send_http_req(conn_info.url, json_data=json_data)
+    return resp_json[RespKey.SUCCESS]
+
+
+def send_stop_phase(conn_info: ConnInfo, ep_num: int, phase_num: int) -> bool:
+    json_data = get_action_json(conn_info, ActionType.STOP_PHASE)
+    json_data[RequestKey.EPISODE] = ep_num
+    json_data[RequestKey.PHASE] = phase_num
+    resp_json = send_http_req(conn_info.url, json_data=json_data)
     return resp_json[RespKey.SUCCESS]
