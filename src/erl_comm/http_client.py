@@ -28,13 +28,41 @@ class RespKey(StrEnum):
     MSG = "message"
     ITEMS = "items"
     EPISODES = "episodes"
+    PHASES = "phases"
+    NAME = "name"
+    NUM = "number"
 
 
 class ConnInfo(object):
-    def __init__(self, url: str, robot_id: str, competition_id: str):
+    def __init__(self, url: str, robot_id: str, competition_id: str) -> None:
         self.url = url
         self.robot_id = robot_id
         self.competition_id = competition_id
+
+
+class PhaseInfo(object):
+    def __init__(self, ep_num: int, num: int, name: str) -> None:
+        self.episode_number = ep_num
+        self.number = num
+        self.name = name
+
+    def __str__(self):
+        return f"episode {self.episode_number}, phase {self.number}: {self.name}"
+
+
+class EpisodeInfo(object):
+    def __init__(self, num: int, name: str) -> None:
+        self.number = num
+        self.name = name
+        self.phases = {}
+
+    def __str__(self):
+        return f"episode {self.number}: {self.name} ({len(self.phases)} phases)"
+
+    def add_phase(self, phase: PhaseInfo) -> None:
+        if phase.number in self.phases:
+            raise RuntimeError(f"phase '{phase.number} ({phase.name})' already added to episode")
+        self.phases[phase.number] = phase
 
 
 def get_default_json(conn_info: ConnInfo) -> dict:
@@ -51,54 +79,54 @@ def get_action_json(conn_info: ConnInfo, action: ActionType) -> dict:
 
 
 def send_http_req(url: str, json_data: dict) -> dict:
-    resp_json = requests.post(url, json=json_data).json()
-    if RespKey.SUCCESS in resp_json:
-        return resp_json
+    resp = requests.post(url, json=json_data).json()
+    if RespKey.SUCCESS in resp:
+        return resp
 
-    if "status" in resp_json:
-        status = resp_json["status"]
-        if "title" in resp_json:
-            err_msg = resp_json["title"]
+    if "status" in resp:
+        status = resp["status"]
+        if "title" in resp:
+            err_msg = resp["title"]
         else:
             err_msg = "<empty>"
         raise RuntimeError(f"unexpected response: status={status}, msg={err_msg}")
 
-    raise RuntimeError(f"unexpected response: {resp_json}")
+    raise RuntimeError(f"unexpected response: {resp}")
 
 
 def send_ping(conn_info: ConnInfo) -> bool:
-    resp_json = send_http_req(conn_info.url, json_data=get_action_json(conn_info, ActionType.PING))
-    return resp_json[RespKey.SUCCESS]
+    resp = send_http_req(conn_info.url, json_data=get_action_json(conn_info, ActionType.PING))
+    return resp[RespKey.SUCCESS]
 
 
 def send_start_ep(conn_info: ConnInfo, ep_num: int) -> bool:
     json_data = get_action_json(conn_info, ActionType.START_EP)
     json_data[RequestKey.EPISODE] = ep_num
-    resp_json = send_http_req(conn_info.url, json_data=json_data)
-    return resp_json[RespKey.SUCCESS]
+    resp = send_http_req(conn_info.url, json_data=json_data)
+    return resp[RespKey.SUCCESS]
 
 
 def send_stop_ep(conn_info: ConnInfo, ep_num: int) -> bool:
     json_data = get_action_json(conn_info, ActionType.STOP_EP)
     json_data[RequestKey.EPISODE] = ep_num
-    resp_json = send_http_req(conn_info.url, json_data=json_data)
-    return resp_json[RespKey.SUCCESS]
+    resp = send_http_req(conn_info.url, json_data=json_data)
+    return resp[RespKey.SUCCESS]
 
 
 def send_start_phase(conn_info: ConnInfo, ep_num: int, phase_num: int) -> bool:
     json_data = get_action_json(conn_info, ActionType.START_PHASE)
     json_data[RequestKey.EPISODE] = ep_num
     json_data[RequestKey.PHASE] = phase_num
-    resp_json = send_http_req(conn_info.url, json_data=json_data)
-    return resp_json[RespKey.SUCCESS]
+    resp = send_http_req(conn_info.url, json_data=json_data)
+    return resp[RespKey.SUCCESS]
 
 
 def send_stop_phase(conn_info: ConnInfo, ep_num: int, phase_num: int) -> bool:
     json_data = get_action_json(conn_info, ActionType.STOP_PHASE)
     json_data[RequestKey.EPISODE] = ep_num
     json_data[RequestKey.PHASE] = phase_num
-    resp_json = send_http_req(conn_info.url, json_data=json_data)
-    return resp_json[RespKey.SUCCESS]
+    resp = send_http_req(conn_info.url, json_data=json_data)
+    return resp[RespKey.SUCCESS]
 
 
 def send_info(conn_info: ConnInfo, ep_num: int, phase_num: int, msg: str) -> bool:
@@ -106,5 +134,38 @@ def send_info(conn_info: ConnInfo, ep_num: int, phase_num: int, msg: str) -> boo
     json_data[RequestKey.EPISODE] = ep_num
     json_data[RequestKey.PHASE] = phase_num
     json_data[RequestKey.MSG] = msg
-    resp_json = send_http_req(conn_info.url, json_data=json_data)
-    return resp_json[RespKey.SUCCESS]
+    resp = send_http_req(conn_info.url, json_data=json_data)
+    return resp[RespKey.SUCCESS]
+
+
+def get_episodes(conn_info: ConnInfo) -> list:
+    json_data = get_action_json(conn_info, ActionType.EPISODES)
+    resp = send_http_req(conn_info.url, json_data=json_data)
+    if resp[RespKey.SUCCESS]:
+        return resp[RespKey.EPISODES]
+    if RespKey.MSG in resp:
+        err_msg = f" ({resp[RespKey.MSG]})"
+    else:
+        err_msg = ""
+    raise RuntimeError(f"failed to query for episodes{err_msg}")
+
+
+def process_episodes_data(episodes_data: list) -> dict:
+    episodes = {}
+    for ep_data in episodes_data:
+        assert RespKey.NUM in ep_data, f"episode data missing required key '{RespKey.NUM}'"
+        assert RespKey.NAME in ep_data, f"episode data missing required key '{RespKey.NAME}'"
+        assert RespKey.PHASES in ep_data, f"episode data missing required key '{RespKey.PHASES}'"
+
+        ep_num = ep_data[RespKey.NUM]
+        ep_name = ep_data[RespKey.NAME]
+        ep_info = EpisodeInfo(ep_num, ep_name)
+        for phase_data in ep_data[RespKey.PHASES]:
+            assert RespKey.NUM in phase_data, f"phase data missing required key '{RespKey.NUM}'"
+            assert RespKey.NAME in phase_data, f"phase data missing required key '{RespKey.NAME}'"
+            phase_info = PhaseInfo(ep_num, phase_data[RespKey.NUM], phase_data[RespKey.NAME])
+            ep_info.add_phase(phase_info)
+
+        episodes[ep_num] = ep_info
+
+    return episodes
