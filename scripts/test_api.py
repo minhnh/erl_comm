@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import sys
 from pprint import pprint
 from erl_comm.http_client import (
     ConnInfo,
@@ -18,7 +19,7 @@ from erl_comm.http_client import (
 def main():
     conn_info = ConnInfo(
         url="https://ecs-mnemosyne.azurewebsites.net/api/Hub",
-        robot_id="f6e43a38-2222-4c2f-e61b-08dbb36c5a96",
+        robot_id="70f30121-e823-4263-2802-08dbb82d04ed",
         competition_id="ERL",
     )
     try:
@@ -34,6 +35,7 @@ def main():
     except Exception as e:
         print(f"caught '{type(e)}'")
         pprint(e)
+        return 1
 
     processed_eps = process_episodes_data(episodes_data)
     for _, ep_info in processed_eps.items():
@@ -46,6 +48,9 @@ def main():
     for _, item_info in processed_items.items():
         print("  ", item_info)
 
+    return 0
+
 
 if __name__ == "__main__":
-    main()
+    rtn = main()
+    sys.exit(rtn)

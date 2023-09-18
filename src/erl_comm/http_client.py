@@ -1,3 +1,6 @@
+"""
+Module containing HTTP requests according to the ERL Robot API Guide Version 1.0.1a.
+"""
 from enum import StrEnum
 import requests
 
@@ -65,7 +68,7 @@ class EpisodeInfo(object):
     def __init__(self, num: int, name: str) -> None:
         self.number = num
         self.name = name
-        self.phases = {}
+        self.phases = {}  # dictionary mapping phase number to PhaseInfo
 
     def __str__(self):
         return f"episode {self.number}: {self.name} ({len(self.phases)} phases)"
@@ -162,6 +165,12 @@ def get_episodes(conn_info: ConnInfo) -> list:
 
 
 def process_episodes_data(episodes_data: list) -> dict:
+    """Returns dictionary of EpisodeInfo objects.
+
+    Convert a list of episodes json data into EpisodeInfo objects containing info about
+    episodes and phases. Return a dictionary mapping episode number to a corresponding
+    EpisodeInfo object
+    """
     episodes = {}
     for ep_data in episodes_data:
         assert RespKey.NUM in ep_data, f"episode data missing required key '{RespKey.NUM}'"
@@ -193,6 +202,11 @@ def get_items(conn_info: ConnInfo, ep_num: int, phase_num: int) -> list:
 
 
 def process_items_data(items_data: list) -> dict:
+    """Returns dictionary of ItemInfo objects.
+
+    Convert a list of items json data into ItemInfo objects containing info about
+    items in each phase.
+    """
     items_info = {}
     for it_data in items_data:
         assert RespKey.CODE in it_data, f"item data missing required key '{RespKey.CODE}'"
