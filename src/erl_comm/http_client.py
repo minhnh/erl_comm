@@ -4,14 +4,13 @@ import requests
 
 class ActionType(StrEnum):
     PING = "PING"  # Informs the Hub the Robot is active
-    EPISODES = "EPISODES"  # Returns a list of Episode and Phase numbers and names that
-    # must be provided when requesting other data from the Hub.
-    ITEMS = "ITEMS"  # Returns a list of Items for a specific Episode and Phase.
-    START_EP = "STARTEPISODE"  # Informs the Hub the Robot has started an Episode.
-    STOP_EP = "STOPEPISODE"  # Informs the Hub the Robot has stopped/completed an Episode.
-    START_PHASE = "STARTPHASE"  # Informs the Hub the Robot has started a Phase.
-    STOP_PHASE = "STOPPHASE"  # Informs the Hub the Robot has stopped a Phase.
-    INFO = "INFO"  # A general message from the Robot.
+    EPISODES = "EPISODES"  # Returns a list of Episode and Phase numbers and name
+    ITEMS = "ITEMS"  # Returns a list of Items for a specific Episode and Phase
+    START_EP = "STARTEPISODE"  # Informs the Hub the Robot has started an Episode
+    STOP_EP = "STOPEPISODE"  # Informs the Hub the Robot has stopped/completed an Episode
+    START_PHASE = "STARTPHASE"  # Informs the Hub the Robot has started a Phase
+    STOP_PHASE = "STOPPHASE"  # Informs the Hub the Robot has stopped a Phase
+    INFO = "INFO"  # A general message from the Robot
 
 
 class RequestKey(StrEnum):
@@ -31,6 +30,8 @@ class RespKey(StrEnum):
     PHASES = "phases"
     NAME = "name"
     NUM = "number"
+    CODE = "code"
+    LOC = "location"
 
 
 class ConnInfo(object):
@@ -40,6 +41,16 @@ class ConnInfo(object):
         self.competition_id = competition_id
 
 
+class ItemInfo(object):
+    def __init__(self, code: str, name: str, location: str) -> None:
+        self.code = code
+        self.name = name
+        self.location = location
+
+    def __str__(self):
+        return f"{self.name} ({self.code})"
+
+
 class PhaseInfo(object):
     def __init__(self, ep_num: int, num: int, name: str) -> None:
         self.episode_number = ep_num
@@ -47,7 +58,7 @@ class PhaseInfo(object):
         self.name = name
 
     def __str__(self):
-        return f"episode {self.episode_number}, phase {self.number}: {self.name}"
+        return f"ep {self.episode_number}, phase {self.number}: {self.name}"
 
 
 class EpisodeInfo(object):
@@ -169,3 +180,28 @@ def process_episodes_data(episodes_data: list) -> dict:
         episodes[ep_num] = ep_info
 
     return episodes
+
+
+def get_items(conn_info: ConnInfo, ep_num: int, phase_num: int) -> list:
+    json_data = get_action_json(conn_info, ActionType.ITEMS)
+    json_data[RequestKey.EPISODE] = ep_num
+    json_data[RequestKey.PHASE] = phase_num
+    resp = send_http_req(conn_info.url, json_data=json_data)
+    if resp[RespKey.SUCCESS]:
+        return resp[RespKey.ITEMS]
+    return []
+
+
+def process_items_data(items_data: list) -> dict:
+    items_info = {}
+    for it_data in items_data:
+        assert RespKey.CODE in it_data, f"item data missing required key '{RespKey.CODE}'"
+        assert RespKey.NAME in it_data, f"item data missing required key '{RespKey.NAME}'"
+        assert RespKey.LOC in it_data, f"item data missing required key '{RespKey.LOC}'"
+
+        it_info = ItemInfo(it_data[RespKey.CODE], it_data[RespKey.NAME], it_data[RespKey.LOC])
+        if it_info.code in items_info:
+            raise RuntimeError(f"duplicate item: {it_info.code}")
+        items_info[it_info.code] = it_info
+
+    return items_info
